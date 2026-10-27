@@ -1,4 +1,5 @@
 import {Component,useEffect,useMemo,useState} from 'react'
+import type {ErrorInfo,ReactNode} from 'react'
 import Plot from 'react-plotly.js'
 import {Activity,Boxes,Cpu,Gauge,Layers3,LayoutDashboard,Network,Play,RefreshCw,Search,ShieldCheck,Sparkles,Zap,Wallet,Scale,GitCompare,PackageCheck,Workflow} from 'lucide-react'
 import {api,Chiplet,Product,PortfolioResult,PortfolioScenario} from './api'
@@ -116,10 +117,10 @@ function Title({eyebrow,title,sub,action}:any){return <div className="title"><di
 function Section({title,sub,action}:any){return <div className="section-head"><div><h2>{title}</h2><p>{sub}</p></div><button onClick={action}>View portfolio ↗</button></div>}
 
 
-class AppErrorBoundary extends Component<{children:React.ReactNode},{hasError:boolean;message:string}> {
+class AppErrorBoundary extends Component<{children:ReactNode},{hasError:boolean;message:string}> {
  constructor(props:{children:React.ReactNode}){super(props);this.state={hasError:false,message:''}}
  static getDerivedStateFromError(error:Error){return {hasError:true,message:error?.message||'Unknown rendering error'}}
- componentDidCatch(error:Error,info:import('react').ErrorInfo){console.error('ReChiplet UI rendering error:',error,info)}
+ componentDidCatch(error:Error,info:ErrorInfo){console.error('ReChiplet UI rendering error:',error,info)}
  render(){
   if(this.state.hasError){
    return <div style={{fontFamily:'Arial,sans-serif',maxWidth:760,margin:'60px auto',padding:28,color:'#192741'}}>
