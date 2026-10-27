@@ -426,3 +426,22 @@ input,select,textarea{font-size:13px;color:#1c304d}
 .interconnect-spec-form button{min-height:38px;grid-column:span 1}
 @media(max-width:760px){.interconnect-spec-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){.interconnect-spec-form{grid-template-columns:1fr}.interconnect-spec-form button{grid-column:auto}}
+
+/* Authentication screen */
+.login-screen{min-height:100vh;display:grid;place-items:center;padding:28px;background:radial-gradient(ellipse at 15% 10%,#e7eeff 0,transparent 42%),#f4f7fc}
+.login-card{width:min(430px,100%);padding:34px;background:#fff;border:1px solid #e2e9f4;border-radius:18px;box-shadow:0 22px 70px rgba(28,48,91,.12);color:#1b2b45}
+.login-brand{display:flex;align-items:center;gap:10px;font:800 20px Manrope,sans-serif;margin-bottom:28px}
+.login-mark{width:42px;height:42px;border-radius:12px;background:#edf2ff;color:#315efb;display:grid;place-items:center}
+.login-card h1{font:800 30px Manrope,sans-serif;letter-spacing:-.7px;margin:8px 0;color:#172944}
+.login-subtitle{font-size:13px;line-height:1.7;color:#71819a;margin:0 0 24px}
+.login-form{display:grid;gap:15px}
+.login-form label{display:grid;gap:7px;font-size:12px;font-weight:700;color:#34435c}
+.login-form input{width:100%;box-sizing:border-box;padding:12px 13px;border:1px solid #dce4f0;border-radius:9px;background:#fff;color:#24334d;font:13px 'DM Sans',sans-serif;outline:none}
+.login-form input:focus{border-color:#315efb;box-shadow:0 0 0 3px #315efb18}
+.login-submit{width:100%;min-height:44px;justify-content:center}
+.login-error{padding:10px 12px;margin:0;border:1px solid #f5d0ce;background:#fff2f1;color:#a52b2b;border-radius:8px;font-size:12px}
+.login-hint{margin:18px 0 8px;font-size:11px;color:#63748f}
+.login-security-note{display:block;font-size:10px;line-height:1.6;color:#8491a5}
+.authenticated-shell{position:relative}
+.logout-button{position:fixed;right:20px;top:14px;z-index:10;border:1px solid #dce4f0;border-radius:8px;background:#fff;color:#34435c;padding:8px 12px;font:700 11px 'DM Sans',sans-serif;cursor:pointer;box-shadow:0 3px 12px #24334d0c}
+.logout-button:hover{background:#f5f7fb}
