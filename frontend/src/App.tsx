@@ -77,9 +77,11 @@ function AppContent(){
  async function saveInterconnectSpecs(e:React.FormEvent<HTMLFormElement>){
   e.preventDefault()
   if(!specChipletId){setError('Choose a chiplet to update.');return}
+  if(!Number.isInteger(Number(specForm.lane_count))||Number(specForm.lane_count)<=0){setError('Lane count must be a positive whole number (for example, 8 or 16).');return}
+  if(!specForm.package_types.split(',').some(x=>x.trim())){setError('Enter at least one supported package type.');return}
   setSpecSaving(true);setError('');setSpecMessage('')
   try{
-   const payload={protocol:specForm.protocol.trim(),protocol_version:specForm.protocol_version.trim(),signaling:specForm.signaling.trim(),lane_count:Number(specForm.lane_count),bandwidth_gbps:Number(specForm.bandwidth_gbps),package_types:specForm.package_types.split(',').map(x=>x.trim()).filter(Boolean),max_reach_mm:Number(specForm.max_reach_mm),voltage_v:Number(specForm.voltage_v),bump_pitch_um:Number(specForm.bump_pitch_um)}
+   const payload={protocol:specForm.protocol.trim(),protocol_version:specForm.protocol_version.trim(),signaling:specForm.signaling.trim(),lane_count:parseInt(specForm.lane_count,10),bandwidth_gbps:Number(specForm.bandwidth_gbps),package_types:specForm.package_types.split(',').map(x=>x.trim()).filter(Boolean),max_reach_mm:Number(specForm.max_reach_mm),voltage_v:Number(specForm.voltage_v),bump_pitch_um:Number(specForm.bump_pitch_um)}
    await api.put('/chiplets/'+specChipletId+'/interconnect-specs',payload)
    await load()
    setSpecMessage('Interconnect specifications saved. Compatibility checks have been refreshed.')
