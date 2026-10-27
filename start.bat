@@ -56,8 +56,7 @@ if errorlevel 1 (
 )
 popd
 
-if exist "frontend\node_modules\vite\bin\vite.js" goto start_servers
-echo [5/5] Installing frontend packages...
+echo [5/5] Ensuring frontend packages are installed...
 pushd "frontend"
 call npm install
 if errorlevel 1 (
