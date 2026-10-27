@@ -1,4 +1,4 @@
-import {useEffect,useMemo,useState} from 'react'
+import {Component,useEffect,useMemo,useState} from 'react'
 import Plot from 'react-plotly.js'
 import {Activity,Boxes,Cpu,Gauge,Layers3,LayoutDashboard,Network,Play,RefreshCw,Search,ShieldCheck,Sparkles,Zap,Wallet,Scale,GitCompare,PackageCheck,Workflow} from 'lucide-react'
 import {api,Chiplet,Product,PortfolioResult,PortfolioScenario} from './api'
@@ -12,7 +12,7 @@ const nav:{label:Tab;icon:any}[]=[
 ]
 const money=(v:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(v)
 
-export default function App(){
+function AppContent(){
  const [tab,setTab]=useState<Tab>('Overview')
  const [chiplets,setChiplets]=useState<Chiplet[]>([])
  const [products,setProducts]=useState<Product[]>([])
@@ -43,10 +43,14 @@ export default function App(){
   setLoading(true);setError('')
   try{
    const {data}=await api.post('/optimize/portfolio')
+   if(!data || !Array.isArray(data.scenarios) || data.scenarios.length===0){
+    throw new Error('Backend response did not contain portfolio scenarios. Check the API terminal and /docs.')
+   }
    setPortfolio(data as PortfolioResult);setScenarioKey('balanced');setTab('Portfolio Optimization')
    await load()
   }catch(e:any){
-   setError(e?.response?.data?.detail||'Portfolio optimization failed. Check the backend terminal and API docs.')
+   console.error('Portfolio optimization failed:', e)
+   setError(e?.response?.data?.detail||e?.message||'Portfolio optimization failed. Check the backend terminal and API docs.')
   }finally{setLoading(false)}
  }
 
@@ -110,3 +114,23 @@ export default function App(){
 
 function Title({eyebrow,title,sub,action}:any){return <div className="title"><div><span className="eyebrow">{eyebrow}</span><h1>{title}</h1><p>{sub}</p></div>{action}</div>}
 function Section({title,sub,action}:any){return <div className="section-head"><div><h2>{title}</h2><p>{sub}</p></div><button onClick={action}>View portfolio ↗</button></div>}
+
+
+class AppErrorBoundary extends Component<{children:React.ReactNode},{hasError:boolean;message:string}> {
+ constructor(props:{children:React.ReactNode}){super(props);this.state={hasError:false,message:''}}
+ static getDerivedStateFromError(error:Error){return {hasError:true,message:error?.message||'Unknown rendering error'}}
+ componentDidCatch(error:Error,info:import('react').ErrorInfo){console.error('ReChiplet UI rendering error:',error,info)}
+ render(){
+  if(this.state.hasError){
+   return <div style={{fontFamily:'Arial,sans-serif',maxWidth:760,margin:'60px auto',padding:28,color:'#192741'}}>
+    <h1 style={{marginBottom:8}}>ReChiplet encountered a display error</h1>
+    <p>The page is protected from a blank screen. This error occurred while displaying optimization results.</p>
+    <pre style={{whiteSpace:'pre-wrap',background:'#fff1f0',border:'1px solid #f0c9c5',borderRadius:8,padding:14,color:'#8f3030'}}>{this.state.message}</pre>
+    <button onClick={()=>this.setState({hasError:false,message:''})} style={{padding:'10px 14px',background:'#315efb',color:'#fff',border:0,borderRadius:7,cursor:'pointer'}}>Try rendering again</button>
+    <p style={{color:'#68758a',fontSize:13}}>If it repeats, open the browser console (F12 → Console) and share the first red error.</p>
+   </div>
+  }
+  return this.props.children
+ }
+}
+export default function App(){return <AppErrorBoundary><AppContent/></AppErrorBoundary>}
