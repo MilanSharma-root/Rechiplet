@@ -116,7 +116,7 @@ def run_portfolio_optimization(assumed_nre_per_chiplet_usd: float = 250000.0, db
     chiplets=[{"id":c.id,"name":c.name,"category":c.category,"process_node_nm":c.process_node_nm,
         "area_mm2":c.area_mm2,"power_w":c.power_w,"unit_cost_usd":c.unit_cost_usd,
         "performance_score":c.performance_score,"thermal_limit_c":c.thermal_limit_c,
-        "interface":c.interface,"maturity":c.maturity} for c in cs]
+        "interface":c.interface,"interconnect_specs":c.interconnect_specs or {},"maturity":c.maturity} for c in cs]
     result=optimize_portfolio(products,chiplets,max(0.0, assumed_nre_per_chiplet_usd))
     summary={"product_count":len(ps),"chiplet_count":len(cs),"feasible":result["feasible"],
         "message":result["message"],"scenario_count":len(result["scenarios"])}
