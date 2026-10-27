@@ -15,6 +15,7 @@ class Chiplet(Base):
     performance_score: Mapped[float] = mapped_column(Float)
     thermal_limit_c: Mapped[float] = mapped_column(Float, default=95)
     interface: Mapped[str] = mapped_column(String(60), default="UCIe")
+    interconnect_specs: Mapped[dict] = mapped_column(JSON, default=dict)
     maturity: Mapped[str] = mapped_column(String(30), default="production")
     notes: Mapped[str] = mapped_column(Text, default="")
 
