@@ -25,6 +25,9 @@ function AppContent(){
  const [error,setError]=useState('')
  const [search,setSearch]=useState('')
  const [health,setHealth]=useState('checking')
+ const [showAddProduct,setShowAddProduct]=useState(false)
+ const [savingProduct,setSavingProduct]=useState(false)
+ const [productForm,setProductForm]=useState({name:'',market_segment:'Consumer Electronics',target_performance:'100',max_power_w:'100',max_area_mm2:'200',max_cost_usd:'500',max_junction_temp_c:'95',min_yield_pct:'90',annual_volume:'100000'})
 
  async function load(){
   try{
@@ -39,6 +42,21 @@ function AppContent(){
  const filtered=useMemo(()=>chiplets.filter(c=>`${c.name} ${c.category} ${c.interface}`.toLowerCase().includes(search.toLowerCase())),[chiplets,search])
  const product=products.find(p=>p.id===selected)
  const currentScenario:PortfolioScenario|undefined=portfolio?.scenarios.find(s=>s.key===scenarioKey)??portfolio?.scenarios[1]??portfolio?.scenarios[0]
+
+ async function createProduct(e:React.FormEvent<HTMLFormElement>){
+  e.preventDefault()
+  setSavingProduct(true);setError('')
+  try{
+   const payload={...productForm,target_performance:Number(productForm.target_performance),max_power_w:Number(productForm.max_power_w),max_area_mm2:Number(productForm.max_area_mm2),max_cost_usd:Number(productForm.max_cost_usd),max_junction_temp_c:Number(productForm.max_junction_temp_c),min_yield_pct:Number(productForm.min_yield_pct),annual_volume:Number(productForm.annual_volume)}
+   const {data}=await api.post('/products',payload)
+   await load()
+   setSelected(data.id)
+   setShowAddProduct(false)
+   setProductForm({name:'',market_segment:'Consumer Electronics',target_performance:'100',max_power_w:'100',max_area_mm2:'200',max_cost_usd:'500',max_junction_temp_c:'95',min_yield_pct:'90',annual_volume:'100000'})
+  }catch(e:any){
+   setError(e?.response?.data?.detail?.[0]?.msg||e?.response?.data?.detail||e?.message||'Could not add product.')
+  }finally{setSavingProduct(false)}
+ }
 
  async function optimizePortfolio(){
   setLoading(true);setError('')
@@ -84,10 +102,11 @@ function AppContent(){
     </>}
 
     {tab==='Product Portfolio'&&<>
-     <Title eyebrow="MULTI-PRODUCT STRATEGY" title="Product portfolio" sub="Review the constraints for every product before running one optimization across the entire portfolio." action={<button className="primary" onClick={optimizePortfolio} disabled={loading||!products.length}><Sparkles size={15}/>{loading?'Optimizing…':'Optimize all products'}</button>}/>
+     <Title eyebrow="MULTI-PRODUCT STRATEGY" title="Product portfolio" sub="Review the constraints for every product before running one optimization across the entire portfolio." action={<div className="portfolio-actions"><button className="secondary-action" onClick={()=>setShowAddProduct(true)}>＋ Add product</button><button className="primary" onClick={optimizePortfolio} disabled={loading||!products.length}><Sparkles size={15}/>{loading?'Optimizing…':'Optimize all products'}</button></div>}/>
      <div className="portfolio"><div className="panel"><h3>Products ({products.length})</h3>{products.map(p=><button className={'product-choice '+(selected===p.id?'chosen':'')} key={p.id} onClick={()=>setSelected(p.id)}><Cpu/><span><b>{p.name}</b><small>{p.market_segment}</small></span></button>)}</div>
       {product&&<div className="panel detail"><span className="eyebrow">PRODUCT REQUIREMENTS</span><h2>{product.name}</h2><p>{product.market_segment} · Annual volume {product.annual_volume.toLocaleString()} · Yield target {product.min_yield_pct}%</p><div className="requirements">{[['Performance target',product.target_performance+' pts'],['Maximum power',product.max_power_w+' W'],['Maximum area',product.max_area_mm2+' mm²'],['Maximum cost',money(product.max_cost_usd)],['Max junction temp',product.max_junction_temp_c+'°C'],['Annual volume',product.annual_volume.toLocaleString()]].map(([a,b])=><div key={a}><small>{a}</small><b>{b}</b></div>)}</div><h3>Available design blocks</h3>{chiplets.slice(0,6).map(c=><div className="available" key={c.id}><span>{c.name}<small>{c.category} · {c.process_node_nm} nm</small></span><b>{c.power_w} W</b></div>)}<button className="primary full" onClick={optimizePortfolio} disabled={loading}>{loading?'Optimizing portfolio…':'Run portfolio optimization'}</button></div>}
      </div>
+     {showAddProduct&&<div className="modal-backdrop"><form className="add-product-modal" onSubmit={createProduct}><div className="modal-heading"><div><span className="eyebrow">PORTFOLIO SETUP</span><h2>Add a product</h2><p>Enter the product targets used by the architecture optimizer.</p></div><button type="button" className="modal-close" onClick={()=>setShowAddProduct(false)}>×</button></div><div className="product-form-grid"><label>Product name<input required minLength={2} maxLength={120} value={productForm.name} onChange={e=>setProductForm({...productForm,name:e.target.value})} placeholder="e.g. Edge AI Gateway"/></label><label>Market segment<select value={productForm.market_segment} onChange={e=>setProductForm({...productForm,market_segment:e.target.value})}><option>Consumer Electronics</option><option>Automotive</option><option>Data Center</option><option>Industrial IoT</option><option>Mobile</option><option>Edge AI</option><option>Networking</option><option>Medical Devices</option></select></label><label>Target performance<input type="number" min="0.01" step="any" required value={productForm.target_performance} onChange={e=>setProductForm({...productForm,target_performance:e.target.value})}/></label><label>Maximum power (W)<input type="number" min="0.01" step="any" required value={productForm.max_power_w} onChange={e=>setProductForm({...productForm,max_power_w:e.target.value})}/></label><label>Maximum area (mm²)<input type="number" min="0.01" step="any" required value={productForm.max_area_mm2} onChange={e=>setProductForm({...productForm,max_area_mm2:e.target.value})}/></label><label>Maximum cost (USD)<input type="number" min="0.01" step="any" required value={productForm.max_cost_usd} onChange={e=>setProductForm({...productForm,max_cost_usd:e.target.value})}/></label><label>Max junction temperature (°C)<input type="number" min="40" max="200" required value={productForm.max_junction_temp_c} onChange={e=>setProductForm({...productForm,max_junction_temp_c:e.target.value})}/></label><label>Minimum yield (%)<input type="number" min="0" max="100" step="any" required value={productForm.min_yield_pct} onChange={e=>setProductForm({...productForm,min_yield_pct:e.target.value})}/></label><label>Annual volume<input type="number" min="1" step="1" required value={productForm.annual_volume} onChange={e=>setProductForm({...productForm,annual_volume:e.target.value})}/></label></div><div className="modal-actions"><button type="button" className="secondary-action" onClick={()=>setShowAddProduct(false)}>Cancel</button><button className="primary" type="submit" disabled={savingProduct}>{savingProduct?'Saving product…':'Save product'}</button></div></form></div>}
      <div className="notice"><Workflow/><div><b>One run, every product</b><p>Product selection here is for inspecting requirements. The optimization action evaluates all products together and returns three portfolio strategies, not just one product result.</p></div></div>
     </>}
 
