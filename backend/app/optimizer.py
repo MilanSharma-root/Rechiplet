@@ -30,9 +30,14 @@ def optimize_product(product: dict, chiplets: list[dict], population_size: int =
         power = sum(c["power_w"] for c in selected)
         area = sum(c["area_mm2"] for c in selected)
         cost = sum(c["unit_cost_usd"] for c in selected)
-        compute = any(c["category"].lower() in ("compute", "accelerator") for c in selected)
-        interface_compatible = len({c["interface"] for c in selected}) == 1
-        violations = (0 if compute else 1) + (0 if interface_compatible else 1)
+        categories = {str(c["category"]).strip().lower() for c in selected}
+        compute = bool(categories.intersection({"compute", "accelerator"}))
+        has_memory = "memory" in categories
+        has_io = bool(categories.intersection({"io", "i/o", "connectivity"}))
+        interface_compatible = len({str(c["interface"]).strip().lower() for c in selected}) == 1
+        # A basic heterogeneous chiplet architecture needs compute, memory and I/O.
+        # This is a prototype rule, not a substitute for a package/interconnect model.
+        violations = (0 if compute else 1) + (0 if has_memory else 1) + (0 if has_io else 1) + (0 if interface_compatible else 1)
         violations += max(0, power-product["max_power_w"]) / max(product["max_power_w"], 1)
         violations += max(0, area-product["max_area_mm2"]) / max(product["max_area_mm2"], 1)
         violations += max(0, cost-product["max_cost_usd"]) / max(product["max_cost_usd"], 1)
@@ -73,13 +78,26 @@ def optimize_product(product: dict, chiplets: list[dict], population_size: int =
         power = round(sum(c["power_w"] for c in chosen), 2)
         area = round(sum(c["area_mm2"] for c in chosen), 2)
         cost = round(sum(c["unit_cost_usd"] for c in chosen), 2)
-        compute = any(c["category"].lower() in ("compute", "accelerator") for c in chosen)
-        interface_compatible = len({c["interface"] for c in chosen}) == 1
-        feasible = compute and interface_compatible and power <= product["max_power_w"] and area <= product["max_area_mm2"] and cost <= product["max_cost_usd"] and perf >= product["target_performance"]
+        categories = {str(c["category"]).strip().lower() for c in chosen}
+        compute = bool(categories.intersection({"compute", "accelerator"}))
+        has_memory = "memory" in categories
+        has_io = bool(categories.intersection({"io", "i/o", "connectivity"}))
+        interface_compatible = len({str(c["interface"]).strip().lower() for c in chosen}) == 1
+        reasons = []
+        if not compute: reasons.append("Missing compute/accelerator chiplet")
+        if not has_memory: reasons.append("Missing memory chiplet")
+        if not has_io: reasons.append("Missing I/O/connectivity chiplet")
+        if not interface_compatible: reasons.append("Selected chiplets have mismatched interfaces")
+        if power > product["max_power_w"]: reasons.append("Power ceiling exceeded")
+        if area > product["max_area_mm2"]: reasons.append("Area ceiling exceeded")
+        if cost > product["max_cost_usd"]: reasons.append("Cost ceiling exceeded")
+        if perf < product["target_performance"]: reasons.append("Target performance not met")
+        feasible = not reasons
         result.append({"chiplet_ids":[c["id"] for c in chosen], "chiplet_names":[c["name"] for c in chosen],
             "strategy":"reuse" if all(c["maturity"]=="production" for c in chosen) else "modify",
             "estimated_cost_usd":cost,"estimated_power_w":power,"estimated_area_mm2":area,
-            "performance_score":perf,"feasible":feasible,"interface_compatible":interface_compatible,"reuse_count":sum(c["maturity"]=="production" for c in chosen)})
+            "performance_score":perf,"feasible":feasible,"interface_compatible":interface_compatible,
+            "feasibility_reasons":reasons,"reuse_count":sum(c["maturity"]=="production" for c in chosen)})
     result.sort(key=lambda x:(not x["feasible"],x["estimated_cost_usd"],x["estimated_power_w"]))
     good = [x for x in result if x["feasible"]]
     return {"feasible":bool(good),"solutions":(good or result)[:30],
