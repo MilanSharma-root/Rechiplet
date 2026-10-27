@@ -6,11 +6,61 @@ from .database import get_db, engine, Base
 from .models import Chiplet, Product, OptimizationRun, PortfolioAssignment
 from .schemas import ChipletIn, ChipletOut, ProductIn, ProductOut
 from pydantic import BaseModel, Field
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from datetime import datetime, timedelta, timezone
+import os, hmac, hashlib, base64, json
 from .optimizer import optimize_product, optimize_portfolio
 from .compatibility import build_matrix, check_pair
 
 app = FastAPI(title="ReChiplet API", version="0.1.0", description="Multi-Product Chiplet Lifecycle Optimizer")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173","http://127.0.0.1:5173"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+
+# Lightweight signed bearer-token login for the local prototype. Configure credentials via environment variables.
+AUTH_SECRET = os.getenv("RECHIPLET_AUTH_SECRET", "local-dev-secret-change-me")
+LOGIN_USERNAME = os.getenv("RECHIPLET_LOGIN_USERNAME", "admin")
+LOGIN_PASSWORD = os.getenv("RECHIPLET_LOGIN_PASSWORD", "Rechiplet@123")
+
+class LoginRequest(BaseModel):
+    username: str = Field(min_length=1, max_length=120)
+    password: str = Field(min_length=1, max_length=200)
+
+def make_token(username: str) -> str:
+    payload = json.dumps({"sub": username, "exp": int((datetime.now(timezone.utc) + timedelta(hours=12)).timestamp())}, separators=(",", ":")).encode()
+    body = base64.urlsafe_b64encode(payload).decode().rstrip("=")
+    signature = hmac.new(AUTH_SECRET.encode(), body.encode(), hashlib.sha256).hexdigest()
+    return body + "." + signature
+
+def verify_token(token: str) -> bool:
+    try:
+        body, signature = token.split(".", 1)
+        expected = hmac.new(AUTH_SECRET.encode(), body.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(signature, expected):
+            return False
+        payload = json.loads(base64.urlsafe_b64decode(body + "=" * (-len(body) % 4)))
+        return payload.get("sub") == LOGIN_USERNAME and int(payload.get("exp", 0)) > int(datetime.now(timezone.utc).timestamp())
+    except Exception:
+        return False
+
+@app.post("/api/auth/login")
+def login(payload: LoginRequest):
+    valid_user = hmac.compare_digest(payload.username, LOGIN_USERNAME)
+    valid_password = hmac.compare_digest(payload.password, LOGIN_PASSWORD)
+    if not (valid_user and valid_password):
+        raise HTTPException(status_code=401, detail="Invalid username or password.")
+    return {"access_token": make_token(payload.username), "token_type": "bearer", "username": payload.username, "expires_in": 43200}
+
+@app.middleware("http")
+async def require_login(request: Request, call_next):
+    path = request.url.path
+    if path == "/api/health" or path == "/api/auth/login" or not path.startswith("/api/"):
+        return await call_next(request)
+    header = request.headers.get("authorization", "")
+    token = header[7:].strip() if header.lower().startswith("bearer ") else ""
+    if not verify_token(token):
+        return JSONResponse(status_code=401, content={"detail":"Login required or session expired."})
+    return await call_next(request)
 
 
 # Lightweight SQLite migration for existing local databases.
