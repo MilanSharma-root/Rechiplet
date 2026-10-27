@@ -419,3 +419,10 @@ input,select,textarea{font-size:13px;color:#1c304d}
 .compat-pair-form .primary{white-space:nowrap;min-height:38px}
 @media(max-width:900px){.compatibility-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.compat-pair-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.compatibility-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.compat-pair-form{grid-template-columns:1fr}.compat-pair-form .primary{width:100%}}
+
+.interconnect-spec-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:end;margin-top:15px}
+.interconnect-spec-form label{display:grid;gap:6px;font-size:11px;font-weight:700;color:#34435c;min-width:0}
+.interconnect-spec-form input,.interconnect-spec-form select{width:100%;min-width:0;border:1px solid #dce4f0;border-radius:8px;padding:10px 11px;background:#fff;color:#24334d;font:12px 'DM Sans'}
+.interconnect-spec-form button{min-height:38px;grid-column:span 1}
+@media(max-width:760px){.interconnect-spec-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.interconnect-spec-form{grid-template-columns:1fr}.interconnect-spec-form button{grid-column:auto}}
