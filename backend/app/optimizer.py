@@ -1,6 +1,7 @@
 import random
 from collections import Counter
 from deap import base, creator, tools, algorithms
+from .compatibility import check_pair
 
 MODEL_NOTE = (
     "Synthetic early-stage estimates. Thermal coupling, die-to-die bandwidth, packaging, yield, "
@@ -35,9 +36,10 @@ def optimize_product(product: dict, chiplets: list[dict], population_size: int =
         has_memory = "memory" in categories
         has_io = bool(categories.intersection({"io", "i/o", "connectivity"}))
         interface_compatible = len({str(c["interface"]).strip().lower() for c in selected}) == 1
+        pair_checks = [check_pair(selected[i], selected[j]) for i in range(len(selected)) for j in range(i + 1, len(selected))]
         # A basic heterogeneous chiplet architecture needs compute, memory and I/O.
         # This is a prototype rule, not a substitute for a package/interconnect model.
-        violations = (0 if compute else 1) + (0 if has_memory else 1) + (0 if has_io else 1) + (0 if interface_compatible else 1)
+        violations = (0 if compute else 1) + (0 if has_memory else 1) + (0 if has_io else 1) + (0 if interface_compatible else 1) + sum(check["status"] == "incompatible" for check in pair_checks)
         violations += max(0, power-product["max_power_w"]) / max(product["max_power_w"], 1)
         violations += max(0, area-product["max_area_mm2"]) / max(product["max_area_mm2"], 1)
         violations += max(0, cost-product["max_cost_usd"]) / max(product["max_cost_usd"], 1)
@@ -83,11 +85,17 @@ def optimize_product(product: dict, chiplets: list[dict], population_size: int =
         has_memory = "memory" in categories
         has_io = bool(categories.intersection({"io", "i/o", "connectivity"}))
         interface_compatible = len({str(c["interface"]).strip().lower() for c in chosen}) == 1
+        pair_checks = [check_pair(chosen[i], chosen[j]) for i in range(len(chosen)) for j in range(i + 1, len(chosen))]
+        interconnect_incompatible = any(check["status"] == "incompatible" for check in pair_checks)
+        interconnect_unknown = any(check["status"] == "insufficient_data" for check in pair_checks)
         reasons = []
         if not compute: reasons.append("Missing compute/accelerator chiplet")
         if not has_memory: reasons.append("Missing memory chiplet")
         if not has_io: reasons.append("Missing I/O/connectivity chiplet")
         if not interface_compatible: reasons.append("Selected chiplets have mismatched interfaces")
+        for check in pair_checks:
+            for issue in check["issues"]:
+                reasons.append(f"{check['chiplet_a']['name']} ↔ {check['chiplet_b']['name']}: {issue}")
         if power > product["max_power_w"]: reasons.append("Power ceiling exceeded")
         if area > product["max_area_mm2"]: reasons.append("Area ceiling exceeded")
         if cost > product["max_cost_usd"]: reasons.append("Cost ceiling exceeded")
@@ -97,6 +105,8 @@ def optimize_product(product: dict, chiplets: list[dict], population_size: int =
             "strategy":"reuse" if all(c["maturity"]=="production" for c in chosen) else "modify",
             "estimated_cost_usd":cost,"estimated_power_w":power,"estimated_area_mm2":area,
             "performance_score":perf,"feasible":feasible,"interface_compatible":interface_compatible,
+            "interconnect_status":"incompatible" if interconnect_incompatible else ("insufficient_data" if interconnect_unknown else "compatible"),
+            "interconnect_checks":pair_checks,
             "feasibility_reasons":reasons,"reuse_count":sum(c["maturity"]=="production" for c in chosen)})
     result.sort(key=lambda x:(not x["feasible"],x["estimated_cost_usd"],x["estimated_power_w"]))
     good = [x for x in result if x["feasible"]]
