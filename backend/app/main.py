@@ -5,7 +5,7 @@ from sqlalchemy import select, func
 from .database import get_db
 from .models import Chiplet, Product, OptimizationRun, PortfolioAssignment
 from .schemas import ChipletIn, ChipletOut, ProductIn, ProductOut
-from .optimizer import optimize_product
+from .optimizer import optimize_product, optimize_portfolio
 
 app = FastAPI(title="ReChiplet API", version="0.1.0", description="Multi-Product Chiplet Lifecycle Optimizer")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173","http://127.0.0.1:5173"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
@@ -57,6 +57,34 @@ def run_optimization(product_id:int,db:Session=Depends(get_db)):
     run=OptimizationRun(status="completed",strategy="NSGA-II",summary={"product_id":p.id,"product_name":p.name,"feasible":result["feasible"],"message":result["message"],"model_note":result["model_note"]},solutions=result["solutions"])
     db.add(run); db.commit(); db.refresh(run)
     return {"run_id":run.id,"product":p.name,**result}
+
+
+@app.post("/api/optimize/portfolio")
+def run_portfolio_optimization(db: Session=Depends(get_db)):
+    """Optimize all configured products and return three comparable portfolio strategies."""
+    ps=db.scalars(select(Product).order_by(Product.id)).all()
+    cs=db.scalars(select(Chiplet).order_by(Chiplet.id)).all()
+    if not ps:
+        raise HTTPException(400, "Add at least one product before running portfolio optimization.")
+    if len(cs) < 3:
+        raise HTTPException(400, "Add at least three chiplets before running portfolio optimization.")
+    products=[{"id":p.id,"name":p.name,"market_segment":p.market_segment,
+        "target_performance":p.target_performance,"max_power_w":p.max_power_w,
+        "max_area_mm2":p.max_area_mm2,"max_cost_usd":p.max_cost_usd,
+        "max_junction_temp_c":p.max_junction_temp_c,"min_yield_pct":p.min_yield_pct,
+        "annual_volume":p.annual_volume} for p in ps]
+    chiplets=[{"id":c.id,"name":c.name,"category":c.category,"process_node_nm":c.process_node_nm,
+        "area_mm2":c.area_mm2,"power_w":c.power_w,"unit_cost_usd":c.unit_cost_usd,
+        "performance_score":c.performance_score,"thermal_limit_c":c.thermal_limit_c,
+        "interface":c.interface,"maturity":c.maturity} for c in cs]
+    result=optimize_portfolio(products,chiplets)
+    summary={"product_count":len(ps),"chiplet_count":len(cs),"feasible":result["feasible"],
+        "message":result["message"],"scenario_count":len(result["scenarios"])}
+    run=OptimizationRun(status="completed",strategy="Portfolio NSGA-II",summary=summary,solutions=result["scenarios"])
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+    return {"run_id":run.id,**result}
 
 @app.get("/api/portfolio/reuse")
 def portfolio_reuse(db:Session=Depends(get_db)):
