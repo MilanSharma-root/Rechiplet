@@ -53,3 +53,8 @@
 .comparison-chart h4{font:700 11px 'DM Sans';color:#53627a;margin:2px 8px 0}
 .comparison-chart .js-plotly-plot{min-width:0}
 @media(max-width:1050px){.comparison-charts{grid-template-columns:1fr}}
+
+/* Give horizontal product comparison charts enough width for long product names and axis labels */
+.comparison-charts{grid-template-columns:minmax(0,1fr)}
+.comparison-chart{padding:12px 14px 8px}
+.comparison-chart .js-plotly-plot{width:100%}
