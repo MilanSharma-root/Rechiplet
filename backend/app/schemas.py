@@ -10,6 +10,7 @@ class ChipletIn(BaseModel):
     performance_score: float = Field(gt=0)
     thermal_limit_c: float = Field(default=95, ge=40, le=200)
     interface: str = "UCIe"
+    interconnect_specs: dict = Field(default_factory=dict)
     maturity: str = "production"
     notes: str = ""
 
