@@ -1,14 +1,44 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func
-from .database import get_db
+from sqlalchemy import select, func, inspect, text
+from .database import get_db, engine
 from .models import Chiplet, Product, OptimizationRun, PortfolioAssignment
 from .schemas import ChipletIn, ChipletOut, ProductIn, ProductOut
 from .optimizer import optimize_product, optimize_portfolio
+from .compatibility import build_matrix, check_pair
 
 app = FastAPI(title="ReChiplet API", version="0.1.0", description="Multi-Product Chiplet Lifecycle Optimizer")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173","http://127.0.0.1:5173"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+
+# Lightweight SQLite migration for existing local databases.
+@app.on_event("startup")
+def ensure_interconnect_specs_column():
+    with engine.begin() as connection:
+        columns = {column["name"] for column in inspect(connection).get_columns("chiplets")}
+        if "interconnect_specs" not in columns:
+            connection.execute(text("ALTER TABLE chiplets ADD COLUMN interconnect_specs JSON NOT NULL DEFAULT '{}'"))
+
+@app.get("/api/compatibility/matrix")
+def interconnect_compatibility_matrix(db: Session=Depends(get_db)):
+    chiplets = db.scalars(select(Chiplet).order_by(Chiplet.id)).all()
+    rows = [{"id": c.id, "name": c.name, "category": c.category, "interface": c.interface,
+             "interconnect_specs": c.interconnect_specs or {}} for c in chiplets]
+    return build_matrix(rows)
+
+@app.get("/api/compatibility/check")
+def interconnect_compatibility_check(chiplet_a_id: int, chiplet_b_id: int,
+                                     required_bandwidth_gbps: float | None = None,
+                                     db: Session=Depends(get_db)):
+    if chiplet_a_id == chiplet_b_id:
+        raise HTTPException(400, "Choose two different chiplets to check a link.")
+    a, b = db.get(Chiplet, chiplet_a_id), db.get(Chiplet, chiplet_b_id)
+    if not a or not b:
+        raise HTTPException(404, "One or both chiplets were not found.")
+    rows = [{"id": c.id, "name": c.name, "interface": c.interface,
+             "interconnect_specs": c.interconnect_specs or {}} for c in (a, b)]
+    return check_pair(rows[0], rows[1], required_bandwidth_gbps)
 
 @app.get("/api/health")
 def health(): return {"status":"ok","service":"rechiplet-api","version":"0.1.0"}
