@@ -2,14 +2,15 @@ import {Component,useEffect,useMemo,useState} from 'react'
 import type {ErrorInfo,ReactNode} from 'react'
 import Plot from 'react-plotly.js'
 import {Activity,Boxes,Cpu,Gauge,Layers3,LayoutDashboard,Network,Play,RefreshCw,Search,ShieldCheck,Sparkles,Zap,Wallet,Scale,GitCompare,PackageCheck,Workflow} from 'lucide-react'
-import {api,Chiplet,Product,PortfolioResult,PortfolioScenario} from './api'
+import {api,Chiplet,Product,PortfolioResult,PortfolioScenario,CompatibilityMatrix} from './api'
 
-type Tab='Overview'|'Chiplet Library'|'Product Portfolio'|'Portfolio Optimization'
+type Tab='Overview'|'Chiplet Library'|'Product Portfolio'|'Portfolio Optimization'|'Interconnect Compatibility'
 const nav:{label:Tab;icon:any}[]=[
  {label:'Overview',icon:LayoutDashboard},
  {label:'Chiplet Library',icon:Layers3},
  {label:'Product Portfolio',icon:Network},
- {label:'Portfolio Optimization',icon:Gauge}
+ {label:'Portfolio Optimization',icon:Gauge},
+ {label:'Interconnect Compatibility',icon:Workflow}
 ]
 const money=(v:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(v)
 
@@ -18,6 +19,9 @@ function AppContent(){
  const [chiplets,setChiplets]=useState<Chiplet[]>([])
  const [products,setProducts]=useState<Product[]>([])
  const [metrics,setMetrics]=useState<any>({})
+ const [compatibility,setCompatibility]=useState<CompatibilityMatrix|null>(null)
+ const [compatibilityLoading,setCompatibilityLoading]=useState(false)
+ const [pairBandwidth,setPairBandwidth]=useState('')
  const [selected,setSelected]=useState<number|null>(null)
  const [portfolio,setPortfolio]=useState<PortfolioResult|null>(null)
  const [scenarioKey,setScenarioKey]=useState<'lowest_cost'|'balanced'|'highest_performance'>('balanced')
@@ -87,6 +91,14 @@ function AppContent(){
    <section className="content">
     {error&&<div className="error">{error}<button onClick={()=>setError('')}>×</button></div>}
 
+    {tab==='Interconnect Compatibility'&&<>
+     <Title eyebrow="ENGINEERING SCREENING" title="Interconnect compatibility" sub="Pairwise checks across your chiplet library. Missing specifications are flagged as unknown, never silently treated as compatible." action={<button className="secondary-action" onClick={async()=>{setCompatibilityLoading(true);try{const {data}=await api.get('/compatibility/matrix');setCompatibility(data);setError('')}catch{setError('Could not refresh compatibility matrix. Check the API and chiplet specifications.')}finally{setCompatibilityLoading(false)}}} disabled={compatibilityLoading}><RefreshCw size={14}/>{compatibilityLoading?'Checking…':'Refresh checks'}</button>}/>
+     <div className="notice"><ShieldCheck/><div><b>Screening, not sign-off</b><p>Checks use the specifications entered for each chiplet. Verify against vendor datasheets, PHY/controller requirements, package design rules and SI/PI analysis before committing to a physical design.</p></div></div>
+     {compatibility&&<><div className="metrics compatibility-metrics">{[['Chiplets in library',compatibility.chiplet_count],['Pairwise links checked',compatibility.pair_count],['Compatible',compatibility.summary.compatible||0],['Incompatible',compatibility.summary.incompatible||0],['Insufficient data',compatibility.summary.insufficient_data||0]].map(([label,value]:any)=><div className="metric" key={label}><Network/><span>{label}</span><b>{value}</b><small>Library-level pair screening</small></div>)}</div>
+     <div className="panel"><div className="section-head"><div><h2>Pairwise compatibility matrix</h2><p>Every unordered pair of chiplets is checked against available interface and interconnect metadata.</p></div></div>
+     {compatibility.pairs.length===0?<div className="empty compact"><Workflow size={28}/><p>Add at least two chiplets to run pairwise checks.</p></div>:<div className="table-wrap"><table><thead><tr><th>CHIPLET A</th><th>CHIPLET B</th><th>INTERFACE</th><th>PROTOCOL / VERSION</th><th>LANES</th><th>BANDWIDTH</th><th>PACKAGE</th><th>STATUS</th></tr></thead><tbody>{compatibility.pairs.map((pair,i)=>{const a=chiplets.find(c=>c.id===pair.chiplet_a.id);const b=chiplets.find(c=>c.id===pair.chiplet_b.id);const sa=a?.interconnect_specs||{};const sb=b?.interconnect_specs||{};return <tr key={pair.chiplet_a.id+'-'+pair.chiplet_b.id}><td><b>{pair.chiplet_a.name}</b></td><td><b>{pair.chiplet_b.name}</b></td><td>{a?.interface||'—'} / {b?.interface||'—'}</td><td>{sa.protocol||'Unknown'} {sa.protocol_version||''} / {sb.protocol||'Unknown'} {sb.protocol_version||''}</td><td>{sa.lane_count??'?' } / {sb.lane_count??'?'}</td><td>{sa.bandwidth_gbps??'?'} / {sb.bandwidth_gbps??'?'} Gbps</td><td>{(sa.package_types||[]).join(', ')||'?'} / {(sb.package_types||[]).join(', ')||'?'}</td><td><span className={'compat-status '+pair.status}>{pair.status.replace('_',' ')}</span><div className="compat-issues">{pair.issues.map((issue,j)=><small key={'i'+j}>⚠ {issue}</small>)}{pair.warnings.slice(0,3).map((warning,j)=><small key={'w'+j}>ⓘ {warning}</small>)}</div></td></tr>})}</tbody></table></div>}</div>
+     <div className="panel"><h2>Check a specific link</h2><p className="chart-hint">Select two chiplets and optionally specify the bandwidth the link must carry.</p><div className="compat-pair-form"><label>Chiplet A<select id="compat-a">{chiplets.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Chiplet B<select id="compat-b">{chiplets.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Required bandwidth (Gbps)<input type="number" min="0.01" step="1" value={pairBandwidth} onChange={e=>setPairBandwidth(e.target.value)} placeholder="Optional"/></label><button className="primary" disabled={chiplets.length<2||compatibilityLoading} onClick={async()=>{const aa=(document.getElementById('compat-a') as HTMLSelectElement|null)?.value;const bb=(document.getElementById('compat-b') as HTMLSelectElement|null)?.value;if(!aa||!bb||aa===bb){setError('Choose two different chiplets.');return}setCompatibilityLoading(true);try{const {data}=await api.get('/compatibility/check',{params:{chiplet_a_id:Number(aa),chiplet_b_id:Number(bb),...(pairBandwidth?{required_bandwidth_gbps:Number(pairBandwidth)}:{})}});setError('');window.alert(data.status.toUpperCase()+'\\n\\n'+[...data.issues,...data.warnings].join('\\n')+'\\n\\n'+data.disclaimer)}catch{setError('Could not check this pair.')}finally{setCompatibilityLoading(false)}}}>Check selected pair</button></div></div></>}
+    </>}
     {tab==='Overview'&&<>
      <div className="hero"><div className="hero-copy"><span className="eyebrow">✦ PORTFOLIO-WIDE OPTIMIZATION</span><h2>One chiplet strategy.<br/><em>Multiple product wins.</em></h2><p>Run the NSGA-II search for every configured product. Compare economy, balanced and performance-focused portfolios, and see which chiplet designs can be reused.</p><button className="hero-button" onClick={optimizePortfolio} disabled={loading||!products.length}><Play size={15}/>{loading?'Optimizing all products…':'Run Portfolio Optimization'}</button></div><div className="chip-art"><div className="orbit"/><div className="chip center"><Cpu/><b>SoC</b></div><div className="chip left"><Zap/>Compute</div><div className="chip right"><Boxes/>Memory</div><div className="chip bottom"><Network/>I/O</div></div></div>
      <div className="metrics">{[[Layers3,'Chiplets in library',metrics.chiplet_count??chiplets.length,'Reusable design blocks'],[Network,'Products in portfolio',metrics.product_count??products.length,'Optimized together'],[Activity,'Optimization runs',metrics.optimization_runs??0,'Saved experiment history'],[RefreshCw,'Shared reuse groups',metrics.shared_reuse_groups??0,'Portfolio assignments']].map(([I,l,v,n]:any)=><div className="metric" key={l}><I/><span>{l}</span><b>{v}</b><small>{n}</small></div>)}</div>
