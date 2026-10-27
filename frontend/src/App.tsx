@@ -40,8 +40,8 @@ function AppContent(){
 
  async function load(){
   try{
-   const [c,p,m,h]=await Promise.all([api.get('/chiplets'),api.get('/products'),api.get('/dashboard'),api.get('/health')])
-   setChiplets(c.data);setProducts(p.data);setMetrics(m.data);setHealth(h.data.status)
+   const [c,p,m,h,k]=await Promise.all([api.get('/chiplets'),api.get('/products'),api.get('/dashboard'),api.get('/health'),api.get('/compatibility/matrix')])
+   setChiplets(c.data);setProducts(p.data);setMetrics(m.data);setHealth(h.data.status);setCompatibility(k.data)
    setSelected(old=>old??p.data[0]?.id??null);setError('')
   }catch{
    setHealth('offline');setError('API unavailable. Run start.bat and refresh this page.')
