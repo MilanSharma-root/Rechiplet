@@ -31,7 +31,8 @@ def optimize_product(product: dict, chiplets: list[dict], population_size: int =
         area = sum(c["area_mm2"] for c in selected)
         cost = sum(c["unit_cost_usd"] for c in selected)
         compute = any(c["category"].lower() in ("compute", "accelerator") for c in selected)
-        violations = (0 if compute else 1)
+        interface_compatible = len({c["interface"] for c in selected}) == 1
+        violations = (0 if compute else 1) + (0 if interface_compatible else 1)
         violations += max(0, power-product["max_power_w"]) / max(product["max_power_w"], 1)
         violations += max(0, area-product["max_area_mm2"]) / max(product["max_area_mm2"], 1)
         violations += max(0, cost-product["max_cost_usd"]) / max(product["max_cost_usd"], 1)
@@ -73,11 +74,12 @@ def optimize_product(product: dict, chiplets: list[dict], population_size: int =
         area = round(sum(c["area_mm2"] for c in chosen), 2)
         cost = round(sum(c["unit_cost_usd"] for c in chosen), 2)
         compute = any(c["category"].lower() in ("compute", "accelerator") for c in chosen)
-        feasible = compute and power <= product["max_power_w"] and area <= product["max_area_mm2"] and cost <= product["max_cost_usd"] and perf >= product["target_performance"]
+        interface_compatible = len({c["interface"] for c in chosen}) == 1
+        feasible = compute and interface_compatible and power <= product["max_power_w"] and area <= product["max_area_mm2"] and cost <= product["max_cost_usd"] and perf >= product["target_performance"]
         result.append({"chiplet_ids":[c["id"] for c in chosen], "chiplet_names":[c["name"] for c in chosen],
             "strategy":"reuse" if all(c["maturity"]=="production" for c in chosen) else "modify",
             "estimated_cost_usd":cost,"estimated_power_w":power,"estimated_area_mm2":area,
-            "performance_score":perf,"feasible":feasible,"reuse_count":sum(c["maturity"]=="production" for c in chosen)})
+            "performance_score":perf,"feasible":feasible,"interface_compatible":interface_compatible,"reuse_count":sum(c["maturity"]=="production" for c in chosen)})
     result.sort(key=lambda x:(not x["feasible"],x["estimated_cost_usd"],x["estimated_power_w"]))
     good = [x for x in result if x["feasible"]]
     return {"feasible":bool(good),"solutions":(good or result)[:30],
