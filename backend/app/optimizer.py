@@ -87,7 +87,7 @@ def optimize_product(product: dict, chiplets: list[dict], population_size: int =
         "model_note":MODEL_NOTE}
 
 def optimize_portfolio(products: list[dict], chiplets: list[dict]):
-    """Run the NSGA-II product search for every product, then compare portfolio-wide scenarios."""
+    """Run product-level candidate search and select visibly distinct portfolio trade-offs."""
     if not products:
         return {"feasible": False, "scenarios": [], "message": "No products are configured.", "model_note": MODEL_NOTE}
     if len(chiplets) < 3:
@@ -100,32 +100,42 @@ def optimize_portfolio(products: list[dict], chiplets: list[dict]):
         if not candidates:
             per_product.append({"product": product, "candidates": [], "feasible": False, "message": result["message"]})
             continue
-        feasible_candidates = [c for c in candidates if c["feasible"]]
-        per_product.append({"product": product, "candidates": feasible_candidates or candidates,
-                            "feasible": bool(feasible_candidates), "message": result["message"]})
+        # Keep both feasible and non-feasible candidates. Strategy selection should be able
+        # to report the least-bad trade-off instead of collapsing every strategy to one list.
+        per_product.append({"product": product, "candidates": candidates,
+                            "feasible": any(c["feasible"] for c in candidates), "message": result["message"]})
 
     def pick(item, scenario):
         candidates = item["candidates"]
         if not candidates:
             return None
         p = item["product"]
+        def norm(v, limit):
+            return v / max(float(limit), 1.0)
+        def balanced_score(c):
+            cost = norm(c["estimated_cost_usd"], p["max_cost_usd"])
+            power = norm(c["estimated_power_w"], p["max_power_w"])
+            area = norm(c["estimated_area_mm2"], p["max_area_mm2"])
+            target = max(float(p["target_performance"]), 1.0)
+            perf_shortfall = max(0.0, target - c["performance_score"]) / target
+            # Explicitly penalize constraint violations while rewarding useful headroom.
+            violation = (max(0.0, cost - 1.0) + max(0.0, power - 1.0) +
+                         max(0.0, area - 1.0) + perf_shortfall)
+            perf_reward = min(c["performance_score"] / target, 1.5)
+            return (not c["feasible"], violation * 10 + 0.30*cost + 0.25*power +
+                    0.15*area - 0.30*perf_reward)
         if scenario == "lowest_cost":
-            return min(candidates, key=lambda c: (not c["feasible"], c["estimated_cost_usd"], c["estimated_power_w"]))
+            return min(candidates, key=lambda c: (not c["feasible"], c["estimated_cost_usd"],
+                                                  c["estimated_power_w"], c["estimated_area_mm2"]))
         if scenario == "highest_performance":
-            return max(candidates, key=lambda c: (c["feasible"], c["performance_score"], -c["estimated_cost_usd"]))
-        # Normalized weighted score: lower cost/power/area, while meeting target performance.
-        def score(c):
-            cost = c["estimated_cost_usd"] / max(p["max_cost_usd"], 1)
-            power = c["estimated_power_w"] / max(p["max_power_w"], 1)
-            area = c["estimated_area_mm2"] / max(p["max_area_mm2"], 1)
-            performance = min(c["performance_score"] / max(p["target_performance"], 1), 1.5)
-            return (not c["feasible"], 0.40*cost + 0.30*power + 0.15*area - 0.15*performance)
-        return min(candidates, key=score)
+            return min(candidates, key=lambda c: (not c["feasible"], -c["performance_score"],
+                                                  c["estimated_cost_usd"]))
+        return min(candidates, key=balanced_score)
 
     definitions = [
-        ("lowest_cost", "Lowest Cost", "Minimize portfolio bill-of-material estimates while respecting each product's constraints where feasible."),
-        ("balanced", "Balanced Portfolio", "Balance cost, power, area and performance across all products."),
-        ("highest_performance", "Highest Performance", "Prefer the highest-performing feasible architecture for each product; cost may be higher.")
+        ("lowest_cost", "Lowest Cost", "Prioritizes the lowest estimated bill of materials; feasibility is preferred, with constraint violations shown when no feasible candidate exists."),
+        ("balanced", "Balanced Portfolio", "Balances cost, power, area and performance, penalizing constraint violations and rewarding performance."),
+        ("highest_performance", "Highest Performance", "Prioritizes performance while preferring feasible architectures; cost may be higher.")
     ]
     scenarios = []
     for key, label, description in definitions:
