@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 import os, hmac, hashlib, base64, json
 from .optimizer import optimize_product, optimize_portfolio
 from .compatibility import build_matrix, check_pair
+from .compatibility_advisor import advise_compatibility
 
 app = FastAPI(title="ReChiplet API", version="0.1.0", description="Multi-Product Chiplet Lifecycle Optimizer")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173","http://127.0.0.1:5173"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
@@ -112,6 +113,21 @@ def interconnect_compatibility_check(chiplet_a_id: int, chiplet_b_id: int,
     rows = [{"id": c.id, "name": c.name, "interface": c.interface,
              "interconnect_specs": c.interconnect_specs or {}} for c in (a, b)]
     return check_pair(rows[0], rows[1], required_bandwidth_gbps)
+
+@app.get("/api/compatibility/advisor")
+def compatibility_advisor(chiplet_id: int, required_bandwidth_gbps: float | None = None, db: Session=Depends(get_db)):
+    """Explainable compatibility recommendations; hard incompatibilities are never recommended."""
+    if required_bandwidth_gbps is not None and required_bandwidth_gbps <= 0:
+        raise HTTPException(400, "Required bandwidth must be greater than zero.")
+    chiplets = db.scalars(select(Chiplet).order_by(Chiplet.id)).all()
+    source_model = next((c for c in chiplets if c.id == chiplet_id), None)
+    if source_model is None:
+        raise HTTPException(404, "Chiplet not found.")
+    rows = [{"id": c.id, "name": c.name, "category": c.category, "interface": c.interface,
+             "interconnect_specs": c.interconnect_specs or {}} for c in chiplets]
+    source = next(row for row in rows if row["id"] == chiplet_id)
+    return advise_compatibility(source, rows, required_bandwidth_gbps)
+
 
 @app.get("/api/health")
 def health(): return {"status":"ok","service":"rechiplet-api","version":"0.1.0"}
