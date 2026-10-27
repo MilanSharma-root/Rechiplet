@@ -74,7 +74,7 @@ function AppContent(){
   }finally{setSavingProduct(false)}
  }
 
- async async function saveInterconnectSpecs(e:React.FormEvent<HTMLFormElement>){
+ async function saveInterconnectSpecs(e:React.FormEvent<HTMLFormElement>){
   e.preventDefault()
   if(!specChipletId){setError('Choose a chiplet to update.');return}
   setSpecSaving(true);setError('');setSpecMessage('')
