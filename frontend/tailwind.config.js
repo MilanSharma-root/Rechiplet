@@ -1,0 +1,1 @@
+export default { content: ['./index.html','./src/**/*.{js,ts,jsx,tsx}'], theme: { extend: { colors: { brand: '#315efb', ink: '#192741' } } }, plugins: [] }
