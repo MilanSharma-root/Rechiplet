@@ -13,6 +13,12 @@ const nav:{label:Tab;icon:any}[]=[
  {label:'Interconnect Compatibility',icon:Workflow}
 ]
 const money=(v:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(v)
+function readableError(value:any,fallback:string):string{
+ if(typeof value==='string') return value
+ if(Array.isArray(value)) return value.map(item=>typeof item==='string'?item:item?.msg||JSON.stringify(item)).join('; ')
+ if(value&&typeof value==='object') return value.msg||value.message||value.detail||JSON.stringify(value)
+ return fallback
+}
 
 function AppContent(){
  const [tab,setTab]=useState<Tab>('Overview')
@@ -63,7 +69,7 @@ function AppContent(){
    setShowAddProduct(false)
    setProductForm({name:'',market_segment:'Consumer Electronics',target_performance:'100',max_power_w:'100',max_area_mm2:'200',max_cost_usd:'500',max_junction_temp_c:'95',min_yield_pct:'90',annual_volume:'100000'})
   }catch(e:any){
-   setError(e?.response?.data?.detail?.[0]?.msg||e?.response?.data?.detail||e?.message||'Could not add product.')
+   setError(readableError(e?.response?.data?.detail||e?.message,'Could not add product.'))
   }finally{setSavingProduct(false)}
  }
 
@@ -76,7 +82,7 @@ function AppContent(){
    await api.put('/chiplets/'+specChipletId+'/interconnect-specs',payload)
    await load()
    setError('')
-  }catch(e:any){setError(e?.response?.data?.detail||'Could not save interconnect specifications.')}
+  }catch(e:any){setError(readableError(e?.response?.data?.detail,'Could not save interconnect specifications.'))}
   finally{setSpecSaving(false)}
  }
 
@@ -91,7 +97,7 @@ function AppContent(){
    await load()
   }catch(e:any){
    console.error('Portfolio optimization failed:', e)
-   setError(e?.response?.data?.detail||e?.message||'Portfolio optimization failed. Check the backend terminal and API docs.')
+   setError(readableError(e?.response?.data?.detail||e?.message,'Portfolio optimization failed. Check the backend terminal and API docs.'))
   }finally{setLoading(false)}
  }
 
