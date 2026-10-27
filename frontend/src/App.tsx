@@ -195,4 +195,18 @@ class AppErrorBoundary extends Component<{children:ReactNode},{hasError:boolean;
   return this.props.children
  }
 }
-export default function App(){return <AppErrorBoundary><AppContent/></AppErrorBoundary>}
+function LoginScreen({onLogin}:{onLogin:()=>void}){
+ const [username,setUsername]=useState('admin')
+ const [password,setPassword]=useState('')
+ const [busy,setBusy]=useState(false)
+ const [message,setMessage]=useState('')
+ async function submit(e:React.FormEvent<HTMLFormElement>){e.preventDefault();setBusy(true);setMessage('');try{const {data}=await api.post('/auth/login',{username,password});localStorage.setItem('rechiplet_access_token',data.access_token);onLogin()}catch(e:any){setMessage(readableError(e?.response?.data?.detail,'Login failed. Check the API and credentials.'))}finally{setBusy(false)}}
+ return <main className="login-screen"><section className="login-card"><div className="login-brand"><div className="login-mark"><Boxes size={25}/></div><span>ReChiplet</span></div><span className="eyebrow">CHIPLET LIFECYCLE OPTIMIZER</span><h1>Welcome back</h1><p className="login-subtitle">Sign in to access your chiplet library, product portfolio and architecture tools.</p><form onSubmit={submit} className="login-form"><label>Username<input autoComplete="username" value={username} onChange={e=>setUsername(e.target.value)} required/></label><label>Password<input type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} required/></label>{message&&<p className="login-error" role="alert">{message}</p>}<button type="submit" className="primary login-submit" disabled={busy}>{busy?'Signing in…':'Sign in'}</button></form><p className="login-hint">Local demo credentials: <b>admin</b> / <b>Rechiplet@123</b></p><small className="login-security-note">Change the demo credentials and token secret through backend environment variables before deploying publicly.</small></section></main>
+}
+function AuthenticatedApp(){
+ const [loggedIn,setLoggedIn]=useState(()=>Boolean(localStorage.getItem('rechiplet_access_token')))
+ useEffect(()=>{const expired=()=>setLoggedIn(false);window.addEventListener('rechiplet-session-expired',expired);return()=>window.removeEventListener('rechiplet-session-expired',expired)},[])
+ if(!loggedIn)return <LoginScreen onLogin={()=>setLoggedIn(true)}/>
+ return <div className="authenticated-shell"><button className="logout-button" onClick={()=>{localStorage.removeItem('rechiplet_access_token');setLoggedIn(false)}}>Sign out</button><AppErrorBoundary><AppContent/></AppErrorBoundary></div>
+}
+export default function App(){return <AuthenticatedApp/>}
