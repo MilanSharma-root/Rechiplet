@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func, inspect, text
-from .database import get_db, engine
+from .database import get_db, engine, Base
 from .models import Chiplet, Product, OptimizationRun, PortfolioAssignment
 from .schemas import ChipletIn, ChipletOut, ProductIn, ProductOut
 from .optimizer import optimize_product, optimize_portfolio
@@ -15,6 +15,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173","http:
 # Lightweight SQLite migration for existing local databases.
 @app.on_event("startup")
 def ensure_interconnect_specs_column():
+    Base.metadata.create_all(bind=engine)
     with engine.begin() as connection:
         columns = {column["name"] for column in inspect(connection).get_columns("chiplets")}
         if "interconnect_specs" not in columns:
