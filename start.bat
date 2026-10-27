@@ -13,7 +13,7 @@ echo.
 rem Detect a usable Python 3.11+ interpreter.
 set "PYTHON_CMD="
 where py >nul 2>&1
-if not errorlevel 1 py -3.11 --version >nul 2>&1 && set "PYTHON_CMD=py -3.11"
+if not errorlevel 1 (\n    py -3.11 --version >nul 2>&1\n    if not errorlevel 1 set "PYTHON_CMD=py -3.11"\n)
 if not defined PYTHON_CMD (
     where py >nul 2>&1
     if not errorlevel 1 (
