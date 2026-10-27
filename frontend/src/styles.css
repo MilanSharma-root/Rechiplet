@@ -46,3 +46,10 @@
 @media(max-width:560px){.portfolio-actions{width:100%}.product-form-grid{grid-template-columns:1fr}.add-product-modal{padding:18px}.modal-actions .primary,.modal-actions .secondary-action{flex:1}}
 
 .chart-hint{font-size:10px;line-height:1.6;color:#8a97ab;margin:8px 2px 0}
+
+.comparison-panel{min-width:0}
+.comparison-charts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px}
+.comparison-chart{min-width:0;border:1px solid #edf0f5;border-radius:9px;padding:12px 8px 4px}
+.comparison-chart h4{font:700 11px 'DM Sans';color:#53627a;margin:2px 8px 0}
+.comparison-chart .js-plotly-plot{min-width:0}
+@media(max-width:1050px){.comparison-charts{grid-template-columns:1fr}}
