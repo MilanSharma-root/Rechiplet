@@ -47,7 +47,7 @@ def list_optimizations(db:Session=Depends(get_db)):
     return [{"id":r.id,"status":r.status,"strategy":r.strategy,"created_at":r.created_at.isoformat(),"summary":r.summary,"solutions":r.solutions} for r in db.scalars(select(OptimizationRun).order_by(OptimizationRun.id.desc()).limit(20)).all()]
 
 @app.post("/api/optimize/portfolio")
-def run_portfolio_optimization(db: Session=Depends(get_db)):
+def run_portfolio_optimization(assumed_nre_per_chiplet_usd: float = 250000.0, db: Session=Depends(get_db)):
     """Optimize all configured products and return three comparable portfolio strategies."""
     ps=db.scalars(select(Product).order_by(Product.id)).all()
     cs=db.scalars(select(Chiplet).order_by(Chiplet.id)).all()
@@ -64,7 +64,7 @@ def run_portfolio_optimization(db: Session=Depends(get_db)):
         "area_mm2":c.area_mm2,"power_w":c.power_w,"unit_cost_usd":c.unit_cost_usd,
         "performance_score":c.performance_score,"thermal_limit_c":c.thermal_limit_c,
         "interface":c.interface,"maturity":c.maturity} for c in cs]
-    result=optimize_portfolio(products,chiplets)
+    result=optimize_portfolio(products,chiplets,max(0.0, assumed_nre_per_chiplet_usd))
     summary={"product_count":len(ps),"chiplet_count":len(cs),"feasible":result["feasible"],
         "message":result["message"],"scenario_count":len(result["scenarios"])}
     run=OptimizationRun(status="completed",strategy="Portfolio NSGA-II",summary=summary,solutions=result["scenarios"])
