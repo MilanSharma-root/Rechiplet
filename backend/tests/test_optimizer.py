@@ -56,3 +56,18 @@ def test_optimizer_rejects_too_few_chiplets():
     result = optimize_product(sample_product(), sample_chiplets()[:2])
     assert result["feasible"] is False
     assert result["solutions"] == []
+
+def test_portfolio_quantifies_reuse_nre_savings():
+    first = sample_product()
+    second = {**sample_product(), "id": 2, "name": "Second SoC"}
+    result = optimize_portfolio([first, second], sample_chiplets(), assumed_nre_per_chiplet_usd=1000)
+    assert len(result["scenarios"]) == 3
+    for scenario in result["scenarios"]:
+        summary = scenario["summary"]
+        assert summary["estimated_nre_savings_usd"] == summary["reuse_events"] * 1000
+        assert summary["shared_chiplet_count"] == len(scenario["shared_chiplets"])
+        for chiplet in scenario["shared_chiplets"]:
+            assert chiplet["product_count"] >= 2
+            assert chiplet["reuse_events"] == chiplet["product_count"] - 1
+            assert chiplet["estimated_nre_avoided_usd"] == chiplet["reuse_events"] * 1000
+
