@@ -5,6 +5,7 @@ from sqlalchemy import select, func, inspect, text
 from .database import get_db, engine, Base
 from .models import Chiplet, Product, OptimizationRun, PortfolioAssignment
 from .schemas import ChipletIn, ChipletOut, ProductIn, ProductOut
+from pydantic import BaseModel, Field
 from .optimizer import optimize_product, optimize_portfolio
 from .compatibility import build_matrix, check_pair
 
@@ -20,6 +21,27 @@ def ensure_interconnect_specs_column():
         columns = {column["name"] for column in inspect(connection).get_columns("chiplets")}
         if "interconnect_specs" not in columns:
             connection.execute(text("ALTER TABLE chiplets ADD COLUMN interconnect_specs JSON NOT NULL DEFAULT '{}'"))
+
+class InterconnectSpecsIn(BaseModel):
+    protocol: str = Field(min_length=1, max_length=60)
+    protocol_version: str = Field(min_length=1, max_length=30)
+    signaling: str = Field(min_length=1, max_length=60)
+    lane_count: int = Field(gt=0, le=4096)
+    bandwidth_gbps: float = Field(gt=0)
+    package_types: list[str] = Field(min_length=1)
+    max_reach_mm: float = Field(gt=0)
+    voltage_v: float = Field(gt=0, le=10)
+    bump_pitch_um: float = Field(gt=0, le=1000)
+
+@app.put("/api/chiplets/{chiplet_id}/interconnect-specs")
+def update_interconnect_specs(chiplet_id: int, payload: InterconnectSpecsIn, db: Session=Depends(get_db)):
+    chiplet = db.get(Chiplet, chiplet_id)
+    if not chiplet:
+        raise HTTPException(404, "Chiplet not found.")
+    chiplet.interconnect_specs = payload.model_dump()
+    db.commit()
+    db.refresh(chiplet)
+    return {"chiplet_id": chiplet.id, "chiplet_name": chiplet.name, "interconnect_specs": chiplet.interconnect_specs}
 
 @app.get("/api/compatibility/matrix")
 def interconnect_compatibility_matrix(db: Session=Depends(get_db)):
