@@ -15,7 +15,7 @@ React + Vite + TypeScript + Tailwind + Plotly.js; FastAPI + SQLAlchemy + Alembic
 Open PowerShell in the repository folder and run:
 
 ```powershell
-.\\start.bat
+.\start.bat
 ```
 
 Frontend: http://localhost:5173  
