@@ -403,3 +403,19 @@ input,select,textarea{font-size:13px;color:#1c304d}
 .reuse-calculation>small{display:block;font-size:10px;line-height:1.7;color:#657a99}
 .reuse-modal-footer{display:flex;justify-content:flex-end;margin-top:18px}
 @media(max-width:650px){.reuse-modal-backdrop{padding:10px;align-items:flex-end}.reuse-detail-modal{max-height:92vh;padding:17px;border-radius:14px}.reuse-detail-stats{grid-template-columns:1fr}.reuse-spec-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.reuse-modal-title h2{font-size:20px}.reuse-row-clickable{flex-wrap:wrap;align-items:flex-start}.reuse-row-clickable .reuse-count{margin-left:53px;white-space:normal;text-align:left}}
+
+/* Interconnect compatibility workspace */
+.compatibility-metrics{grid-template-columns:repeat(5,minmax(0,1fr))}
+.compat-status{display:inline-flex;padding:5px 8px;border-radius:6px;font-size:10px;font-weight:800;text-transform:capitalize;white-space:nowrap}
+.compat-status.compatible{background:#e4f8ef;color:#087f61}
+.compat-status.incompatible{background:#fff0ee;color:#b42318}
+.compat-status.insufficient_data{background:#fff6df;color:#946200}
+.compat-issues{display:grid;gap:4px;min-width:180px;max-width:280px;margin-top:7px}
+.compat-issues small{font-size:10px;line-height:1.45;color:#65758e;white-space:normal}
+.compat-issues small:first-child{color:#9b5d00}
+.compat-pair-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;align-items:end;gap:12px}
+.compat-pair-form label{display:grid;gap:6px;color:#34435c;font-size:11px;font-weight:700;min-width:0}
+.compat-pair-form select,.compat-pair-form input{width:100%;min-width:0;border:1px solid #dce4f0;border-radius:8px;padding:10px 11px;background:#fff;color:#24334d;font:12px 'DM Sans'}
+.compat-pair-form .primary{white-space:nowrap;min-height:38px}
+@media(max-width:900px){.compatibility-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.compat-pair-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.compatibility-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.compat-pair-form{grid-template-columns:1fr}.compat-pair-form .primary{width:100%}}
