@@ -46,19 +46,6 @@ def create_product(payload:ProductIn,db:Session=Depends(get_db)):
 def list_optimizations(db:Session=Depends(get_db)):
     return [{"id":r.id,"status":r.status,"strategy":r.strategy,"created_at":r.created_at.isoformat(),"summary":r.summary,"solutions":r.solutions} for r in db.scalars(select(OptimizationRun).order_by(OptimizationRun.id.desc()).limit(20)).all()]
 
-@app.post("/api/optimize/{product_id}")
-def run_optimization(product_id:int,db:Session=Depends(get_db)):
-    p=db.get(Product,product_id)
-    if not p: raise HTTPException(404,"Product not found.")
-    cs=db.scalars(select(Chiplet).order_by(Chiplet.id)).all()
-    product={"target_performance":p.target_performance,"max_power_w":p.max_power_w,"max_area_mm2":p.max_area_mm2,"max_cost_usd":p.max_cost_usd}
-    chiplets=[{"id":c.id,"name":c.name,"category":c.category,"process_node_nm":c.process_node_nm,"area_mm2":c.area_mm2,"power_w":c.power_w,"unit_cost_usd":c.unit_cost_usd,"performance_score":c.performance_score,"thermal_limit_c":c.thermal_limit_c,"interface":c.interface,"maturity":c.maturity} for c in cs]
-    result=optimize_product(product,chiplets)
-    run=OptimizationRun(status="completed",strategy="NSGA-II",summary={"product_id":p.id,"product_name":p.name,"feasible":result["feasible"],"message":result["message"],"model_note":result["model_note"]},solutions=result["solutions"])
-    db.add(run); db.commit(); db.refresh(run)
-    return {"run_id":run.id,"product":p.name,**result}
-
-
 @app.post("/api/optimize/portfolio")
 def run_portfolio_optimization(db: Session=Depends(get_db)):
     """Optimize all configured products and return three comparable portfolio strategies."""
@@ -85,6 +72,20 @@ def run_portfolio_optimization(db: Session=Depends(get_db)):
     db.commit()
     db.refresh(run)
     return {"run_id":run.id,**result}
+
+
+@app.post("/api/optimize/{product_id}")
+def run_optimization(product_id:int,db:Session=Depends(get_db)):
+    p=db.get(Product,product_id)
+    if not p: raise HTTPException(404,"Product not found.")
+    cs=db.scalars(select(Chiplet).order_by(Chiplet.id)).all()
+    product={"target_performance":p.target_performance,"max_power_w":p.max_power_w,"max_area_mm2":p.max_area_mm2,"max_cost_usd":p.max_cost_usd}
+    chiplets=[{"id":c.id,"name":c.name,"category":c.category,"process_node_nm":c.process_node_nm,"area_mm2":c.area_mm2,"power_w":c.power_w,"unit_cost_usd":c.unit_cost_usd,"performance_score":c.performance_score,"thermal_limit_c":c.thermal_limit_c,"interface":c.interface,"maturity":c.maturity} for c in cs]
+    result=optimize_product(product,chiplets)
+    run=OptimizationRun(status="completed",strategy="NSGA-II",summary={"product_id":p.id,"product_name":p.name,"feasible":result["feasible"],"message":result["message"],"model_note":result["model_note"]},solutions=result["solutions"])
+    db.add(run); db.commit(); db.refresh(run)
+    return {"run_id":run.id,"product":p.name,**result}
+
 
 @app.get("/api/portfolio/reuse")
 def portfolio_reuse(db:Session=Depends(get_db)):
