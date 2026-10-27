@@ -104,7 +104,7 @@ def optimize_product(product: dict, chiplets: list[dict], population_size: int =
         "message":f"{len(good)} feasible candidate(s) found." if good else "No feasible candidate found; showing closest candidates.",
         "model_note":MODEL_NOTE}
 
-def optimize_portfolio(products: list[dict], chiplets: list[dict]):
+def optimize_portfolio(products: list[dict], chiplets: list[dict], assumed_nre_per_chiplet_usd: float = 250000.0):
     """Run product-level candidate search and select visibly distinct portfolio trade-offs."""
     if not products:
         return {"feasible": False, "scenarios": [], "message": "No products are configured.", "model_note": MODEL_NOTE}
@@ -175,12 +175,20 @@ def optimize_portfolio(products: list[dict], chiplets: list[dict]):
             for cid in set(candidate["chiplet_ids"]):
                 usage[cid] += 1
         shared_ids = {cid for cid, count in usage.items() if count > 1}
-        shared = [{"chiplet_id": c["id"], "chiplet_name": c["name"], "product_count": usage[c["id"]], "products": [a["product_name"] for a in architectures if a.get("solution") and c["id"] in a["solution"]["chiplet_ids"]]} for c in chiplets if c["id"] in shared_ids]
+        shared = [{"chiplet_id": c["id"], "chiplet_name": c["name"], "product_count": usage[c["id"]],
+                   "reuse_events": usage[c["id"]] - 1,
+                   "estimated_nre_avoided_usd": round((usage[c["id"]] - 1) * max(0.0, assumed_nre_per_chiplet_usd), 2),
+                   "products": [a["product_name"] for a in architectures if a.get("solution") and c["id"] in a["solution"]["chiplet_ids"]]}
+                  for c in chiplets if c["id"] in shared_ids]
+        reuse_events = sum(item["reuse_events"] for item in shared)
+        estimated_nre_savings = sum(item["estimated_nre_avoided_usd"] for item in shared)
         scenarios.append({
             "key": key, "label": label, "description": description, "architectures": architectures,
             "summary": {"product_count": len(products), "feasible_product_count": feasible_count,
                 "total_estimated_cost_usd": round(total_cost, 2), "total_estimated_power_w": round(total_power, 2),
-                "total_estimated_area_mm2": round(total_area, 2), "shared_chiplet_count": len(shared)},
+                "total_estimated_area_mm2": round(total_area, 2), "shared_chiplet_count": len(shared),
+                "reuse_events": reuse_events, "assumed_nre_per_chiplet_usd": round(max(0.0, assumed_nre_per_chiplet_usd), 2),
+                "estimated_nre_savings_usd": round(estimated_nre_savings, 2)},
             "shared_chiplets": shared
         })
     return {"feasible": all(s["summary"]["feasible_product_count"] == len(products) for s in scenarios),
