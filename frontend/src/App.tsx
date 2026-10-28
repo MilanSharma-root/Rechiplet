@@ -20,7 +20,7 @@ function readableError(value:any,fallback:string):string{
  return fallback
 }
 
-function AppContent(){
+function AppContent({onLogout}:{onLogout:()=>void}){
  const [tab,setTab]=useState<Tab>('Overview')
  const [chiplets,setChiplets]=useState<Chiplet[]>([])
  const [products,setProducts]=useState<Product[]>([])
@@ -116,7 +116,7 @@ function AppContent(){
    <div className="side-bottom"><span className={'dot '+(health==='ok'?'':'off')}/>{health==='ok'?'API Connected':health==='checking'?'Checking API':'API Offline'}<small>PORTFOLIO OPTIMIZER · 0.2.0</small></div>
   </aside>
   <main className="main">
-   <header className="topbar"><span>Workspace　/　<b>{tab}</b></span><div><span className="online">● Engineering workspace</span><button className="refresh" onClick={()=>void load()} title="Refresh data"><RefreshCw size={16}/></button><span className="avatar">RC</span></div></header>
+   <header className="topbar"><span>Workspace　/　<b>{tab}</b></span><div className="topbar-actions"><span className="online">● Engineering workspace</span><button className="refresh" onClick={()=>void load()} title="Refresh data" aria-label="Refresh data"><RefreshCw size={16}/></button><span className="avatar" aria-label="ReChiplet account">RC</span><button className="logout-button" onClick={onLogout}>Sign out</button></div></header>
    <section className="content">
     {error&&<div className="error">{error}<button onClick={()=>setError('')}>×</button></div>}
 
@@ -210,6 +210,6 @@ function AuthenticatedApp(){
  const [loggedIn,setLoggedIn]=useState(()=>Boolean(localStorage.getItem('rechiplet_access_token')))
  useEffect(()=>{const expired=()=>setLoggedIn(false);window.addEventListener('rechiplet-session-expired',expired);return()=>window.removeEventListener('rechiplet-session-expired',expired)},[])
  if(!loggedIn)return <LoginScreen onLogin={()=>setLoggedIn(true)}/>
- return <div className="authenticated-shell"><button className="logout-button" onClick={()=>{localStorage.removeItem('rechiplet_access_token');setLoggedIn(false)}}>Sign out</button><AppErrorBoundary><AppContent/></AppErrorBoundary></div>
+ return <div className="authenticated-shell"><AppErrorBoundary><AppContent onLogout={()=>{localStorage.removeItem('rechiplet_access_token');setLoggedIn(false)}}/></AppErrorBoundary></div>
 }
 export default function App(){return <AuthenticatedApp/>}
