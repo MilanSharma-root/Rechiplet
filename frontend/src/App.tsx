@@ -2,7 +2,7 @@ import {Component,useEffect,useMemo,useState} from 'react'
 import type {ErrorInfo,ReactNode} from 'react'
 import Plot from 'react-plotly.js'
 import {Activity,Boxes,Cpu,Gauge,Layers3,LayoutDashboard,Network,Play,RefreshCw,Search,ShieldCheck,Sparkles,Zap,Wallet,Scale,GitCompare,PackageCheck,Workflow} from 'lucide-react'
-import {api,Chiplet,Product,PortfolioResult,PortfolioScenario,CompatibilityMatrix} from './api'
+import {api,Chiplet,Product,PortfolioResult,PortfolioScenario,CompatibilityMatrix,CompatibilityAdvisorResult} from './api'
 
 type Tab='Overview'|'Chiplet Library'|'Product Portfolio'|'Portfolio Optimization'|'Interconnect Compatibility'
 const nav:{label:Tab;icon:any}[]=[
