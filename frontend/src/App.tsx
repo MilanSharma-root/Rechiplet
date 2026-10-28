@@ -41,28 +41,23 @@ function AppContent(){
  const [error,setError]=useState('')
  const [search,setSearch]=useState('')
  const [health,setHealth]=useState('checking')
- const [loginUsername,setLoginUsername]=useState('admin')
- const [loginPassword,setLoginPassword]=useState('')
- const [loginLoading,setLoginLoading]=useState(false)
- const [isAuthenticated,setIsAuthenticated]=useState(Boolean(localStorage.getItem('rechiplet_access_token')))
- const [loginError,setLoginError]=useState('')
  const [showAddProduct,setShowAddProduct]=useState(false)
  const [savingProduct,setSavingProduct]=useState(false)
  const [productForm,setProductForm]=useState({name:'',market_segment:'Consumer Electronics',target_performance:'100',max_power_w:'100',max_area_mm2:'200',max_cost_usd:'500',max_junction_temp_c:'95',min_yield_pct:'90',annual_volume:'100000'})
 
  async function load(){
   try{
-   const [c,p,m,h,k]=await Promise.all([api.get('/chiplets'),api.get('/products'),api.get('/dashboard'),api.get('/health'),api.get('/compatibility/matrix')])
-   setChiplets(c.data);setSpecChipletId(old=>old||String(c.data[0]?.id??''));setProducts(p.data);setMetrics(m.data);setHealth(h.data.status);setCompatibility(k.data)
+   const [h,c,p,m]=await Promise.all([api.get('/health'),api.get('/chiplets'),api.get('/products'),api.get('/dashboard')])
+   setHealth(h.data.status);setChiplets(c.data);setSpecChipletId(old=>old||String(c.data[0]?.id??''));setProducts(p.data);setMetrics(m.data)
    setSelected(old=>old??p.data[0]?.id??null);setError('')
-  }catch{
-   setHealth('offline');setError('API unavailable. Run start.bat and refresh this page.')
+   try{const k=await api.get('/compatibility/matrix');setCompatibility(k.data)}catch(e){console.warn('Compatibility matrix unavailable; other dashboard data loaded.',e)}
+  }catch(e:any){
+   setHealth('offline')
+   const detail=e?.response?.data?.detail||e?.message||'Cannot reach the API.'
+   setError('Backend connection failed: '+detail+'. Check http://127.0.0.1:8000/api/health and keep the backend terminal open.')
   }
  }
- useEffect(()=>{if(isAuthenticated)void load()},[isAuthenticated])
- async function signIn(e:React.FormEvent<HTMLFormElement>){e.preventDefault();setLoginLoading(true);setLoginError('');try{const {data}=await api.post('/auth/login',{username:loginUsername.trim(),password:loginPassword});localStorage.setItem('rechiplet_access_token',data.access_token);setIsAuthenticated(true);setLoginPassword('')}catch(e:any){setLoginError(readableError(e?.response?.data?.detail,'Login failed. Check that the backend is running.'))}finally{setLoginLoading(false)}}
- function signOut(){localStorage.removeItem('rechiplet_access_token');setIsAuthenticated(false);setHealth('checking');setError('')}
- useEffect(()=>{const handler=()=>{setIsAuthenticated(false);setHealth('offline')};window.addEventListener('rechiplet-session-expired',handler);return()=>window.removeEventListener('rechiplet-session-expired',handler)},[])
+ useEffect(()=>{void load()},[])
  const filtered=useMemo(()=>chiplets.filter(c=>`${c.name} ${c.category} ${c.interface}`.toLowerCase().includes(search.toLowerCase())),[chiplets,search])
  const product=products.find(p=>p.id===selected)
  const currentScenario:PortfolioScenario|undefined=portfolio?.scenarios.find(s=>s.key===scenarioKey)??portfolio?.scenarios[1]??portfolio?.scenarios[0]
@@ -113,13 +108,12 @@ function AppContent(){
   }finally{setLoading(false)}
  }
 
- if(!isAuthenticated)return <div className="login-shell"><form className="login-card" onSubmit={signIn}><div className="login-brand"><div className="brand-icon"><Cpu/></div><div><b>ReChiplet</b><small>CHIPLET LIFECYCLE OS</small></div></div><span className="eyebrow">ENGINEERING WORKSPACE</span><h1>Sign in to ReChiplet</h1><p>Access chiplet library, portfolio optimization and compatibility screening.</p>{loginError&&<div className="login-error" role="alert">{loginError}</div>}<label>Username<input autoComplete="username" value={loginUsername} onChange={e=>setLoginUsername(e.target.value)} required/></label><label>Password<input type="password" autoComplete="current-password" value={loginPassword} onChange={e=>setLoginPassword(e.target.value)} required/></label><button className="primary full" type="submit" disabled={loginLoading}>{loginLoading?"Signing in…":"Sign in"}</button><small className="login-hint">Local demo credentials: admin / Rechiplet@123</small></form></div>;
  return <div className="shell">
   <aside className="sidebar">
    <div className="brand"><div className="brand-icon"><Cpu/></div><div><b>ReChiplet</b><small>CHIPLET LIFECYCLE OS</small></div></div>
    <div className="nav-label">WORKSPACE</div>
    {nav.map(n=>{const I=n.icon;return <button key={n.label} className={'nav '+(tab===n.label?'active':'')} onClick={()=>setTab(n.label)}><I size={18}/>{n.label}</button>})}
-   <div className="side-bottom"><button className="logout-button" onClick={signOut}>Sign out</button><span className={'dot '+(health==='ok'?'':'off')}/>{health==='ok'?'API Connected':health==='checking'?'Checking API':'API Offline'}<small>PORTFOLIO OPTIMIZER · 0.2.0</small></div>
+   <div className="side-bottom"><span className={'dot '+(health==='ok'?'':'off')}/>{health==='ok'?'API Connected':health==='checking'?'Checking API':'API Offline'}<small>PORTFOLIO OPTIMIZER · 0.2.0</small></div>
   </aside>
   <main className="main">
    <header className="topbar"><span>Workspace　/　<b>{tab}</b></span><div><span className="online">● Engineering workspace</span><button className="refresh" onClick={()=>void load()} title="Refresh data"><RefreshCw size={16}/></button><span className="avatar">RC</span></div></header>
