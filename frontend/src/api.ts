@@ -2,8 +2,6 @@ import axios from 'axios'
 type ViteImportMeta = ImportMeta & { env?: { VITE_API_URL?: string } }
 const apiBaseUrl = (import.meta as ViteImportMeta).env?.VITE_API_URL || 'http://127.0.0.1:8000/api'
 export const api=axios.create({baseURL:apiBaseUrl,timeout:120000})
-api.interceptors.request.use(config=>{const token=localStorage.getItem('rechiplet_access_token');if(token)config.headers.Authorization='Bearer '+token;return config})
-api.interceptors.response.use(response=>response,error=>{if(error?.response?.status===401){localStorage.removeItem('rechiplet_access_token');window.dispatchEvent(new Event('rechiplet-session-expired'))}return Promise.reject(error)})
 export type Chiplet={id:number;name:string;category:string;process_node_nm:number;area_mm2:number;power_w:number;unit_cost_usd:number;performance_score:number;thermal_limit_c:number;interface:string;interconnect_specs:InterconnectSpecs;maturity:string;notes:string}
 export type InterconnectSpecs={protocol?:string;protocol_version?:string;signaling?:string;lane_count?:number;bandwidth_gbps?:number;package_types?:string[];max_reach_mm?:number;voltage_v?:number;bump_pitch_um?:number}
 export type CompatibilityPair={chiplet_a:{id:number;name:string};chiplet_b:{id:number;name:string};status:"compatible"|"incompatible"|"insufficient_data";common_bandwidth_gbps:number|null;required_bandwidth_gbps:number|null;issues:string[];warnings:string[];checks:Record<string,"pass"|"fail"|"unknown">;disclaimer:string}
