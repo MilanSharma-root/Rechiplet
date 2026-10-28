@@ -1,6 +1,6 @@
 import axios from 'axios'
 type ViteImportMeta = ImportMeta & { env?: { VITE_API_URL?: string } }
-const apiBaseUrl = (import.meta as ViteImportMeta).env?.VITE_API_URL || 'http://127.0.0.1:8000/api'
+const apiBaseUrl = (import.meta as ViteImportMeta).env?.VITE_API_URL || '/api'
 export const api=axios.create({baseURL:apiBaseUrl,timeout:120000})
 export type Chiplet={id:number;name:string;category:string;process_node_nm:number;area_mm2:number;power_w:number;unit_cost_usd:number;performance_score:number;thermal_limit_c:number;interface:string;interconnect_specs:InterconnectSpecs;maturity:string;notes:string}
 export type InterconnectSpecs={protocol?:string;protocol_version?:string;signaling?:string;lane_count?:number;bandwidth_gbps?:number;package_types?:string[];max_reach_mm?:number;voltage_v?:number;bump_pitch_um?:number}
